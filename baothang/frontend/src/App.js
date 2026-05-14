@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './App.css';
 
-axios.defaults.baseURL = 'http://localhost:3000';
+// Tự động lấy URL backend
+axios.defaults.baseURL = window.location.hostname === 'localhost' 
+  ? 'http://localhost:3000' 
+  : 'https://baothang.onrender.com'; // ← SỬA URL NÀY!
 
 function App() {
   const [user, setUser] = useState(null);
@@ -24,15 +27,26 @@ function App() {
   }, []);
 
   const fetchUser = async () => {
-    try { const res = await axios.get('/api/users/me'); setUser(res.data); } catch (e) { logout(); }
+    try { 
+      const res = await axios.get('/api/users/me'); 
+      setUser(res.data); 
+    } catch (e) { 
+      logout(); 
+    }
   };
 
   const fetchTasks = async () => {
-    try { const res = await axios.get('/api/tasks'); setTasks(res.data); } catch (e) {}
+    try { 
+      const res = await axios.get('/api/tasks'); 
+      setTasks(res.data); 
+    } catch (e) {}
   };
 
   const fetchOffers = async () => {
-    try { const res = await axios.get('/api/affiliate/offers'); setOffers(res.data.data || [res.data]); } catch (e) {}
+    try { 
+      const res = await axios.get('/api/affiliate/offers'); 
+      setOffers(res.data.data || []); 
+    } catch (e) {}
   };
 
   const handleAuth = async (e) => {
@@ -44,44 +58,63 @@ function App() {
       localStorage.setItem('token', res.data.token);
       axios.defaults.headers.common['Authorization'] = 'Bearer ' + res.data.token;
       setUser(res.data.user);
-      showNotif('Thanh cong!');
+      showNotif('Thành công!');
       fetchTasks();
-    } catch (e) { showNotif(e.response?.data?.message || 'Loi', 'error'); }
+    } catch (e) { 
+      showNotif(e.response?.data?.message || 'Lỗi', 'error'); 
+    }
     setLoading(false);
   };
 
   const completeTask = async (id) => {
     try {
       const res = await axios.post('/api/tasks/complete/' + id, { proof: 'done' });
-      showNotif('+' + res.data.points + ' diem!');
+      showNotif('+' + res.data.pointsEarned + ' điểm!');
       fetchUser();
       fetchTasks();
-    } catch (e) { showNotif(e.response?.data?.message || 'Loi', 'error'); }
+    } catch (e) { 
+      showNotif(e.response?.data?.message || 'Lỗi', 'error'); 
+    }
   };
 
-  const copyLink = (text) => { navigator.clipboard.writeText(text); showNotif('Da copy!'); };
-  const logout = () => { localStorage.removeItem('token'); setUser(null); };
-  const showNotif = (msg, type='success') => { setNotif({msg,type}); setTimeout(()=>setNotif(null),3000); };
+  const copyLink = (text) => { 
+    navigator.clipboard.writeText(text); 
+    showNotif('Đã copy!'); 
+  };
+  
+  const logout = () => { 
+    localStorage.removeItem('token'); 
+    setUser(null); 
+  };
+  
+  const showNotif = (msg, type='success') => { 
+    setNotif({msg,type}); 
+    setTimeout(() => setNotif(null), 3000); 
+  };
 
   if (!user) {
     return (
       <div className="App">
-        <header className="App-header"><h1>BaoThang.top</h1></header>
+        <header className="App-header"><h1>🚀 BaoThang.top</h1></header>
         <div className="auth-container">
           <div className="auth-card">
-            <h2>{isLogin ? 'Dang Nhap' : 'Dang Ky'}</h2>
+            <h2>{isLogin ? 'Đăng Nhập' : 'Đăng Ký'}</h2>
             <form onSubmit={handleAuth}>
               <div className="form-group">
                 <label>Email</label>
-                <input type="email" value={email} onChange={(e)=>setEmail(e.target.value)} required />
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
               </div>
               <div className="form-group">
-                <label>Mat khau</label>
-                <input type="password" value={password} onChange={(e)=>setPassword(e.target.value)} required />
+                <label>Mật khẩu</label>
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
               </div>
-              <button type="submit" className="btn-primary" disabled={loading}>{loading ? 'Dang xu ly...' : (isLogin ? 'Dang Nhap' : 'Dang Ky')}</button>
+              <button type="submit" className="btn-primary" disabled={loading}>
+                {loading ? 'Đang xử lý...' : (isLogin ? 'Đăng Nhập' : 'Đăng Ký')}
+              </button>
             </form>
-            <p className="toggle-auth" onClick={()=>setIsLogin(!isLogin)}>{isLogin ? 'Chua co tk? Dang ky' : 'Da co tk? Dang nhap'}</p>
+            <p className="toggle-auth" onClick={() => setIsLogin(!isLogin)}>
+              {isLogin ? 'Chưa có tài khoản? Đăng ký' : 'Đã có tài khoản? Đăng nhập'}
+            </p>
           </div>
         </div>
         {notif && <div className="toast">{notif.msg}</div>}
@@ -92,29 +125,31 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <h1>BaoThang.top</h1>
+        <h1>🚀 BaoThang.top</h1>
         <div className="user-info">
-          <span>Cap {user.level}</span>
-          <span>{user.points} diem</span>
+          <span>Cấp {user.level}</span>
+          <span>{user.points} điểm</span>
           <span>{user.email}</span>
-          <button onClick={logout} className="btn btn-outline-light btn-sm">Thoat</button>
+          <button onClick={logout} className="btn btn-outline-light btn-sm">Thoát</button>
         </div>
       </header>
+      
       <div className="nav-tabs">
-        <button className={'nav-tab ' + (tab==='tasks'?'active':'')} onClick={()=>{setTab('tasks');fetchTasks();}}>Nhiem vu</button>
-        <button className={'nav-tab ' + (tab==='affiliate'?'active':'')} onClick={()=>{setTab('affiliate');fetchOffers();}}>Affiliate</button>
+        <button className={'nav-tab ' + (tab==='tasks'?'active':'')} onClick={() => {setTab('tasks'); fetchTasks();}}>📋 Nhiệm vụ</button>
+        <button className={'nav-tab ' + (tab==='affiliate'?'active':'')} onClick={() => {setTab('affiliate'); fetchOffers();}}>💰 Affiliate</button>
       </div>
+      
       <div className="dashboard">
         {tab==='tasks' && (
           <>
-            <h2>Nhiem vu Airdrop</h2>
+            <h2>Nhiệm vụ Airdrop</h2>
             <div className="tasks-grid">
-              {tasks.map(t=>(
-                <div key={t._id} className="task-card">
+              {tasks.map(t => (
+                <div key={t.id} className="task-card">
                   <h3>{t.title}</h3>
                   <p>{t.description}</p>
-                  <div className="task-reward">+{t.points} diem</div>
-                  <button className="btn-complete" onClick={()=>completeTask(t._id)}>Hoan thanh</button>
+                  <div className="task-reward">+{t.points} điểm</div>
+                  <button className="btn-complete" onClick={() => completeTask(t.id)}>Hoàn thành</button>
                 </div>
               ))}
             </div>
@@ -124,11 +159,11 @@ function App() {
           <>
             <h2>Affiliate Marketing</h2>
             <div className="offers-grid">
-              {offers.map(o=>(
+              {offers.map(o => (
                 <div key={o.id} className="offer-card">
                   <h4>{o.name}</h4>
-                  <p>Hoa hong: {o.commission}</p>
-                  <button className="btn-copy-link" onClick={()=>copyLink(o.affiliateLink)}>Copy Link</button>
+                  <p>Hoa hồng: {o.commission}</p>
+                  <button className="btn-copy-link" onClick={() => copyLink(o.affiliateLink)}>Copy Link</button>
                 </div>
               ))}
             </div>
