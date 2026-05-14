@@ -9,15 +9,14 @@ require('dotenv').config();
 
 const app = express();
 
-// Bảo mật cơ bản
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
-// File lưu dữ liệu
 const DATA_FILE = path.join(__dirname, 'data.json');
+const JWT_SECRET = process.env.JWT_SECRET || 'baothang-secret-key-2024';
+const ADMIN_EMAIL = 'thangthangwew@gmail.com'; // Email admin mặc định
 
-// Đọc dữ liệu từ file
 function readData() {
   if (!fs.existsSync(DATA_FILE)) {
     fs.writeFileSync(DATA_FILE, JSON.stringify({ users: [], tasks: [] }));
@@ -25,31 +24,37 @@ function readData() {
   return JSON.parse(fs.readFileSync(DATA_FILE));
 }
 
-// Ghi dữ liệu vào file
 function writeData(data) {
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
 }
 
-// Tạo JWT secret
-const JWT_SECRET = process.env.JWT_SECRET || 'baothang-secret-key-2024';
+function auth(req, res, next) {
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    if (!token) return res.status(401).json({ message: 'Không có token' });
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    res.status(401).json({ message: 'Token không hợp lệ' });
+  }
+}
 
-// ============ AUTH ROUTES ============
-
-// Đăng ký
+// ============ AUTH ============
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password, walletAddress } = req.body;
     const data = readData();
     
-    // Kiểm tra email tồn tại
     if (data.users.find(u => u.email === email)) {
       return res.status(400).json({ message: 'Email đã tồn tại' });
     }
     
-    // Mã hóa mật khẩu
     const hashedPassword = await bcrypt.hash(password, 10);
     
-    // Tạo user mới
+    // Nếu email là admin thì tự động set role admin
+    const role = email === ADMIN_EMAIL ? 'admin' : 'user';
+    
     const newUser = {
       id: Date.now().toString(),
       email,
@@ -57,6 +62,7 @@ app.post('/api/auth/register', async (req, res) => {
       walletAddress: walletAddress || '',
       points: 0,
       level: 1,
+      role: role,
       affiliateCode: 'REF' + Math.random().toString(36).substr(2, 8).toUpperCase(),
       completedTasks: [],
       createdAt: new Date()
@@ -65,7 +71,6 @@ app.post('/api/auth/register', async (req, res) => {
     data.users.push(newUser);
     writeData(data);
     
-    // Tạo token
     const token = jwt.sign({ userId: newUser.id }, JWT_SECRET, { expiresIn: '7d' });
     
     res.status(201).json({
@@ -75,6 +80,7 @@ app.post('/api/auth/register', async (req, res) => {
         email: newUser.email,
         points: newUser.points,
         level: newUser.level,
+        role: newUser.role,
         affiliateCode: newUser.affiliateCode
       }
     });
@@ -83,21 +89,16 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-// Đăng nhập
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     const data = readData();
     
     const user = data.users.find(u => u.email === email);
-    if (!user) {
-      return res.status(400).json({ message: 'Email hoặc mật khẩu không đúng' });
-    }
+    if (!user) return res.status(400).json({ message: 'Email hoặc mật khẩu không đúng' });
     
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Email hoặc mật khẩu không đúng' });
-    }
+    if (!isMatch) return res.status(400).json({ message: 'Email hoặc mật khẩu không đúng' });
     
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
     
@@ -108,6 +109,7 @@ app.post('/api/auth/login', async (req, res) => {
         email: user.email,
         points: user.points,
         level: user.level,
+        role: user.role,
         affiliateCode: user.affiliateCode
       }
     });
@@ -116,36 +118,16 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// ============ MIDDLEWARE AUTH ============
-function auth(req, res, next) {
-  try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    if (!token) {
-      return res.status(401).json({ message: 'Không có token' });
-    }
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch (error) {
-    res.status(401).json({ message: 'Token không hợp lệ' });
-  }
-}
-
-// ============ USER ROUTES ============
-
-// Lấy thông tin user
+// ============ USER ============
 app.get('/api/users/me', auth, (req, res) => {
   const data = readData();
   const user = data.users.find(u => u.id === req.user.userId);
   if (!user) return res.status(404).json({ message: 'Không tìm thấy user' });
-  
   const { password, ...userInfo } = user;
   res.json(userInfo);
 });
 
-// ============ TASK ROUTES ============
-
-// Tạo task mẫu nếu chưa có
+// ============ TASKS ============
 function initTasks() {
   const data = readData();
   if (data.tasks.length === 0) {
@@ -161,76 +143,93 @@ function initTasks() {
 }
 initTasks();
 
-// Lấy danh sách nhiệm vụ
 app.get('/api/tasks', auth, (req, res) => {
   const data = readData();
   const tasks = data.tasks.filter(t => t.status === 'active');
   res.json(tasks);
 });
 
-// Hoàn thành nhiệm vụ
 app.post('/api/tasks/complete/:taskId', auth, (req, res) => {
   const data = readData();
   const task = data.tasks.find(t => t.id === req.params.taskId);
+  if (!task) return res.status(404).json({ message: 'Không tìm thấy nhiệm vụ' });
+  if (task.completions.includes(req.user.userId)) return res.status(400).json({ message: 'Bạn đã hoàn thành nhiệm vụ này' });
   
-  if (!task) {
-    return res.status(404).json({ message: 'Không tìm thấy nhiệm vụ' });
-  }
-  
-  // Kiểm tra đã hoàn thành chưa
-  if (task.completions.includes(req.user.userId)) {
-    return res.status(400).json({ message: 'Bạn đã hoàn thành nhiệm vụ này' });
-  }
-  
-  // Đánh dấu hoàn thành
   task.completions.push(req.user.userId);
-  
-  // Cộng điểm cho user
   const user = data.users.find(u => u.id === req.user.userId);
   user.points += task.points;
   user.completedTasks.push({ taskId: task.id, pointsEarned: task.points, completedAt: new Date() });
-  
-  // Lên cấp
-  if (user.points >= user.level * 1000) {
-    user.level += 1;
-  }
+  if (user.points >= user.level * 1000) user.level += 1;
   
   writeData(data);
-  
-  res.json({
-    message: 'Hoàn thành nhiệm vụ!',
-    pointsEarned: task.points,
-    totalPoints: user.points,
-    level: user.level
-  });
+  res.json({ message: 'Hoàn thành!', pointsEarned: task.points, totalPoints: user.points, level: user.level });
 });
 
-// ============ AFFILIATE ROUTES ============
+// ============ ADMIN ============
+app.get('/api/admin/users', auth, (req, res) => {
+  const data = readData();
+  const admin = data.users.find(u => u.id === req.user.userId);
+  if (admin.role !== 'admin') return res.status(403).json({ message: 'Không có quyền' });
+  
+  const users = data.users.map(u => ({ id: u.id, email: u.email, points: u.points, level: u.level, role: u.role, createdAt: u.createdAt }));
+  res.json(users);
+});
 
+app.post('/api/admin/tasks', auth, (req, res) => {
+  const data = readData();
+  const admin = data.users.find(u => u.id === req.user.userId);
+  if (admin.role !== 'admin') return res.status(403).json({ message: 'Không có quyền' });
+  
+  const { title, description, points } = req.body;
+  const newTask = { id: Date.now().toString(), title, description, points: Number(points), status: 'active', completions: [] };
+  data.tasks.push(newTask);
+  writeData(data);
+  res.json(newTask);
+});
+
+app.delete('/api/admin/tasks/:id', auth, (req, res) => {
+  const data = readData();
+  const admin = data.users.find(u => u.id === req.user.userId);
+  if (admin.role !== 'admin') return res.status(403).json({ message: 'Không có quyền' });
+  
+  data.tasks = data.tasks.filter(t => t.id !== req.params.id);
+  writeData(data);
+  res.json({ message: 'Đã xóa' });
+});
+
+app.put('/api/admin/users/:id', auth, (req, res) => {
+  const data = readData();
+  const admin = data.users.find(u => u.id === req.user.userId);
+  if (admin.role !== 'admin') return res.status(403).json({ message: 'Không có quyền' });
+  
+  const user = data.users.find(u => u.id === req.params.id);
+  if (!user) return res.status(404).json({ message: 'Không tìm thấy user' });
+  
+  if (req.body.role) user.role = req.body.role;
+  writeData(data);
+  res.json({ message: 'Đã cập nhật' });
+});
+
+// ============ AFFILIATE ============
 app.get('/api/affiliate/offers', auth, (req, res) => {
   const data = readData();
   const user = data.users.find(u => u.id === req.user.userId);
-  
   const offers = [
-    { id: 1, name: 'Shopee - Mua sắm online', description: 'Ưu đãi đặc biệt', commission: '5%', affiliateLink: `https://shopee.vn/?ref=${user.affiliateCode}` },
-    { id: 2, name: 'Lazada - Siêu sale', description: 'Giảm giá lên đến 50%', commission: '3%', affiliateLink: `https://lazada.vn/?ref=${user.affiliateCode}` },
-    { id: 3, name: 'Tiki - Giao nhanh', description: 'Miễn phí giao hàng', commission: '2%', affiliateLink: `https://tiki.vn/?ref=${user.affiliateCode}` }
+    { id: 1, name: 'Shopee', description: 'Mua sắm online', commission: '5%', affiliateLink: `https://shopee.vn/?ref=${user.affiliateCode}` },
+    { id: 2, name: 'Lazada', description: 'Siêu sale', commission: '3%', affiliateLink: `https://lazada.vn/?ref=${user.affiliateCode}` },
+    { id: 3, name: 'Tiki', description: 'Giao nhanh', commission: '2%', affiliateLink: `https://tiki.vn/?ref=${user.affiliateCode}` }
   ];
-  
   res.json({ success: true, data: offers });
 });
 
 // ============ SERVE FRONTEND ============
-
 app.use(express.static(path.join(__dirname, '../frontend/build')));
-
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
 });
 
-// ============ START SERVER ============
-
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server chạy tại port ${PORT}`);
+  console.log(`👑 Admin email: ${ADMIN_EMAIL}`);
 });
