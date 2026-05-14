@@ -1,0 +1,32 @@
+.App { text-align:center; min-height:100vh; }
+.App-header { background:rgba(0,0,0,0.8); padding:20px; color:white; display:flex; justify-content:space-between; align-items:center; }
+.App-header h1 { margin:0; color:#FFD700; }
+.user-info { display:flex; gap:15px; }
+.user-info span { background:rgba(255,255,255,0.2); padding:8px 16px; border-radius:20px; }
+.auth-container { display:flex; justify-content:center; align-items:center; min-height:80vh; }
+.auth-card { background:white; border-radius:15px; padding:30px; width:90%; max-width:400px; box-shadow:0 10px 40px rgba(0,0,0,0.3); }
+.auth-card h2 { margin-bottom:20px; color:#333; }
+.form-group { margin-bottom:15px; text-align:left; }
+.form-group label { display:block; margin-bottom:5px; color:#555; font-weight:bold; }
+.form-group input { width:100%; padding:10px; border:2px solid #ddd; border-radius:8px; font-size:16px; }
+.btn-primary { width:100%; padding:12px; background:linear-gradient(135deg, #667eea, #764ba2); color:white; border:none; border-radius:8px; font-size:16px; font-weight:bold; cursor:pointer; margin-top:10px; }
+.btn-primary:hover { opacity:0.9; }
+.toggle-auth { margin-top:15px; color:#667eea; cursor:pointer; text-decoration:underline; }
+.dashboard { padding:30px; max-width:1200px; margin:0 auto; }
+.dashboard h2 { color:white; margin-bottom:20px; }
+.tasks-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:20px; }
+.task-card { background:white; border-radius:10px; padding:20px; box-shadow:0 5px 15px rgba(0,0,0,0.1); }
+.task-card h3 { color:#333; margin-bottom:10px; }
+.task-card p { color:#666; margin-bottom:10px; }
+.task-reward { background:gold; color:black; padding:5px 15px; border-radius:15px; font-weight:bold; display:inline-block; margin-bottom:10px; }
+.btn-complete { width:100%; padding:10px; background:linear-gradient(135deg, #667eea, #764ba2); color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; }
+.btn-complete:hover { opacity:0.9; }
+.nav-tabs { display:flex; justify-content:center; gap:10px; margin-bottom:20px; }
+.nav-tab { padding:10px 25px; background:rgba(255,255,255,0.2); color:white; border:2px solid rgba(255,255,255,0.3); border-radius:25px; cursor:pointer; }
+.nav-tab:hover, .nav-tab.active { background:white; color:#667eea; }
+.offers-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:20px; }
+.offer-card { background:white; border-radius:10px; padding:20px; box-shadow:0 5px 15px rgba(0,0,0,0.1); }
+.btn-copy-link { width:100%; padding:10px; background:#4CAF50; color:white; border:none; border-radius:8px; cursor:pointer; }
+.toast { position:fixed; bottom:20px; right:20px; background:white; padding:15px 25px; border-radius:10px; box-shadow:0 5px 20px rgba(0,0,0,0.3); z-index:9999; }
+.loading-spinner { width:50px; height:50px; border:5px solid rgba(255,255,255,0.3); border-top:5px solid white; border-radius:50%; animation:spin 1s linear infinite; margin:50px auto; }
+@keyframes spin { to { transform:rotate(360deg); } }
