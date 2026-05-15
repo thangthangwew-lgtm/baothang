@@ -2,8 +2,7 @@
   "name": "baothang-backend",
   "version": "1.0.0",
   "scripts": {
-    "start": "node server.js",
-    "seed": "node seed.js"
+    "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
